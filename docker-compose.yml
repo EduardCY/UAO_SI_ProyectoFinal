@@ -1,0 +1,292 @@
+version: '3.8'
+
+# ==============================================================================
+# PROYECTO 4: BALANCEO DE CARGAS MYSQL CON PROXYSQL
+# Servicios Telemáticos — Universidad Autónoma de Occidente (2026-02)
+# Autores: Felipe Charria Caicedo & Eduard Criollo Yule
+# ==============================================================================
+
+networks:
+  telematicos_db_net:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.28.0.0/16
+
+volumes:
+  master_data:
+  slave1_data:
+  slave2_data:
+  slave3_data:
+  proxysql_data:
+
+services:
+  # ----------------------------------------------------------------------------
+  # NODO MAESTRO (MySQL 8.0 - Escrituras HG 10)
+  # ----------------------------------------------------------------------------
+  mysql-master:
+    image: ${MYSQL_IMAGE:-mysql:8.0}
+    container_name: mysql-master
+    hostname: mysql-master
+    restart: unless-stopped
+    command:
+      - mysqld
+      - --server-id=1
+      - --log-bin=mysql-bin
+      - --binlog-format=ROW
+      - --gtid-mode=ON
+      - --enforce-gtid-consistency=ON
+      - --log-replica-updates=ON
+      - --read-only=0
+      - --default-authentication-plugin=mysql_native_password
+      - --max-connections=300
+      - --max-connect-errors=10000
+      - --innodb-buffer-pool-size=256M
+      - --innodb-flush-log-at-trx-commit=2
+      - --sync-binlog=0
+      - --skip-name-resolve=1
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+    volumes:
+      - ./mysql/init-master:/docker-entrypoint-initdb.d:ro
+      - ./mysql/scripts/master-healthcheck.sh:/scripts/master-healthcheck.sh:ro
+      - master_data:/var/lib/mysql
+    networks:
+      telematicos_db_net:
+        ipv4_address: 172.28.0.10
+    expose:
+      - "3306"
+    healthcheck:
+      test: ["CMD", "bash", "/scripts/master-healthcheck.sh"]
+      interval: 4s
+      timeout: 3s
+      retries: 30
+      start_period: 10s
+
+  # ----------------------------------------------------------------------------
+  # RÉPLICA 1 (MySQL 8.0 - Lecturas HG 20)
+  # ----------------------------------------------------------------------------
+  mysql-slave-1:
+    image: ${MYSQL_IMAGE:-mysql:8.0}
+    container_name: mysql-slave-1
+    hostname: mysql-slave-1
+    restart: unless-stopped
+    command:
+      - --server-id=2
+      - --log-bin=mysql-bin
+      - --binlog-format=ROW
+      - --gtid-mode=ON
+      - --enforce-gtid-consistency=ON
+      - --relay-log=mysql-relay-bin
+      - --log-replica-updates=ON
+      - --default-authentication-plugin=mysql_native_password
+      - --max-connections=300
+      - --max-connect-errors=10000
+      - --replica-parallel-workers=4
+      - --replica-parallel-type=LOGICAL_CLOCK
+      - --replica-preserve-commit-order=ON
+      - --innodb-buffer-pool-size=256M
+      - --skip-name-resolve=1
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_REPL_PASSWORD: ${MYSQL_REPL_PASSWORD}
+    volumes:
+      - ./mysql/scripts/slave-entrypoint.sh:/scripts/slave-entrypoint.sh:ro
+      - ./mysql/scripts/slave-healthcheck.sh:/scripts/slave-healthcheck.sh:ro
+      - slave1_data:/var/lib/mysql
+    entrypoint: ["bash", "/scripts/slave-entrypoint.sh"]
+    networks:
+      telematicos_db_net:
+        ipv4_address: 172.28.0.21
+    expose:
+      - "3306"
+    depends_on:
+      mysql-master:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "bash", "/scripts/slave-healthcheck.sh"]
+      interval: 4s
+      timeout: 3s
+      retries: 35
+      start_period: 15s
+
+  # ----------------------------------------------------------------------------
+  # RÉPLICA 2 (MySQL 8.0 - Lecturas HG 20)
+  # ----------------------------------------------------------------------------
+  mysql-slave-2:
+    image: ${MYSQL_IMAGE:-mysql:8.0}
+    container_name: mysql-slave-2
+    hostname: mysql-slave-2
+    restart: unless-stopped
+    command:
+      - --server-id=3
+      - --log-bin=mysql-bin
+      - --binlog-format=ROW
+      - --gtid-mode=ON
+      - --enforce-gtid-consistency=ON
+      - --relay-log=mysql-relay-bin
+      - --log-replica-updates=ON
+      - --default-authentication-plugin=mysql_native_password
+      - --max-connections=300
+      - --max-connect-errors=10000
+      - --replica-parallel-workers=4
+      - --replica-parallel-type=LOGICAL_CLOCK
+      - --replica-preserve-commit-order=ON
+      - --innodb-buffer-pool-size=256M
+      - --skip-name-resolve=1
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_REPL_PASSWORD: ${MYSQL_REPL_PASSWORD}
+    volumes:
+      - ./mysql/scripts/slave-entrypoint.sh:/scripts/slave-entrypoint.sh:ro
+      - ./mysql/scripts/slave-healthcheck.sh:/scripts/slave-healthcheck.sh:ro
+      - slave2_data:/var/lib/mysql
+    entrypoint: ["bash", "/scripts/slave-entrypoint.sh"]
+    networks:
+      telematicos_db_net:
+        ipv4_address: 172.28.0.22
+    expose:
+      - "3306"
+    depends_on:
+      mysql-master:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "bash", "/scripts/slave-healthcheck.sh"]
+      interval: 4s
+      timeout: 3s
+      retries: 35
+      start_period: 15s
+
+  # ----------------------------------------------------------------------------
+  # RÉPLICA 3 (MySQL 8.0 - Escala en Caliente Prueba 5)
+  # ----------------------------------------------------------------------------
+  mysql-slave-3:
+    image: ${MYSQL_IMAGE:-mysql:8.0}
+    container_name: mysql-slave-3
+    hostname: mysql-slave-3
+    profiles:
+      - scale
+    restart: "no"
+    command:
+      - --server-id=4
+      - --log-bin=mysql-bin
+      - --binlog-format=ROW
+      - --gtid-mode=ON
+      - --enforce-gtid-consistency=ON
+      - --relay-log=mysql-relay-bin
+      - --log-replica-updates=ON
+      - --default-authentication-plugin=mysql_native_password
+      - --max-connections=300
+      - --max-connect-errors=10000
+      - --replica-parallel-workers=4
+      - --replica-parallel-type=LOGICAL_CLOCK
+      - --replica-preserve-commit-order=ON
+      - --innodb-buffer-pool-size=256M
+      - --skip-name-resolve=1
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_REPL_PASSWORD: ${MYSQL_REPL_PASSWORD}
+    volumes:
+      - ./mysql/scripts/slave-entrypoint.sh:/scripts/slave-entrypoint.sh:ro
+      - ./mysql/scripts/slave-healthcheck.sh:/scripts/slave-healthcheck.sh:ro
+      - slave3_data:/var/lib/mysql
+    entrypoint: ["bash", "/scripts/slave-entrypoint.sh"]
+    networks:
+      telematicos_db_net:
+        ipv4_address: 172.28.0.23
+    expose:
+      - "3306"
+    depends_on:
+      mysql-master:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "bash", "/scripts/slave-healthcheck.sh"]
+      interval: 4s
+      timeout: 3s
+      retries: 35
+      start_period: 15s
+
+  # ----------------------------------------------------------------------------
+  # PROXYSQL 2.x (Middleware Capa 7 Inteligente)
+  # ----------------------------------------------------------------------------
+  proxysql:
+    image: ${PROXYSQL_IMAGE:-proxysql/proxysql:2.6.3}
+    container_name: proxysql
+    hostname: proxysql
+    restart: unless-stopped
+    ports:
+      - "${PROXYSQL_MYSQL_PORT:-6033}:6033"
+      - "${PROXYSQL_ADMIN_PORT:-6032}:6032"
+    volumes:
+      - ./proxysql/proxysql.cnf:/etc/proxysql.cnf:ro
+      - ./proxysql/sync-runtime.sh:/scripts/sync-runtime.sh:ro
+      - proxysql_data:/var/lib/proxysql
+    networks:
+      telematicos_db_net:
+        ipv4_address: 172.28.0.100
+    depends_on:
+      mysql-master:
+        condition: service_healthy
+      mysql-slave-1:
+        condition: service_healthy
+      mysql-slave-2:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "mysql -h 127.0.0.1 -P 6032 -u admin -padmin -e 'SELECT 1;' || exit 1"]
+      interval: 4s
+      timeout: 3s
+      retries: 20
+      start_period: 5s
+
+  # ----------------------------------------------------------------------------
+  # SUITE DE BENCHMARKING (Sysbench C Nativo)
+  # ----------------------------------------------------------------------------
+  sysbench:
+    image: proyectofinal-sysbench:latest
+    container_name: sysbench
+    hostname: sysbench
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_APP_USER: ${MYSQL_APP_USER}
+      MYSQL_APP_PASSWORD: ${MYSQL_APP_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+    volumes:
+      - ./results:/workspace/results
+      - ./scripts:/workspace/scripts:ro
+    networks:
+      telematicos_db_net:
+        ipv4_address: 172.28.0.200
+    depends_on:
+      proxysql:
+        condition: service_healthy
+
+  # ----------------------------------------------------------------------------
+  # MICROSERVICIO FLASK + MONITOR WIN98 / SCADA RETRO (Práctica 9 Integrada)
+  # ----------------------------------------------------------------------------
+  app-flask:
+    image: proyectofinal-app-flask:latest
+    container_name: app-flask
+    hostname: app-flask
+    restart: unless-stopped
+    ports:
+      - "${FLASK_PORT:-5000}:5000"
+    volumes:
+      - ./app-flask:/app
+    environment:
+      PROXYSQL_HOST: proxysql
+      PROXYSQL_DATA_PORT: 6033
+      PROXYSQL_ADMIN_PORT: 6032
+      MYSQL_APP_USER: ${MYSQL_APP_USER}
+      MYSQL_APP_PASSWORD: ${MYSQL_APP_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      PROXYSQL_ADMIN_USER: radmin
+      PROXYSQL_ADMIN_PASSWORD: radmin
+    networks:
+      telematicos_db_net:
+        ipv4_address: 172.28.0.150
+    depends_on:
+      proxysql:
+        condition: service_healthy

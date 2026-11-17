@@ -1,0 +1,4 @@
+scenario,threads,duration_sec,tps,qps,lat_avg_ms,lat_p95_ms,lat_p99_ms
+Carga_4_hilos,4,15,109.55,1752.81,36.44,64.47,0
+Carga_16_hilos,16,15,198.31,3172.96,80.48,158.63,0
+Carga_64_hilos,64,15,248.86,3981.73,255.04,511.33,0

@@ -1,0 +1,5 @@
+scenario,target,threads,duration_sec,tps,qps,lat_avg_ms,lat_p95_ms,lat_p99_ms
+oltp_read_only,Directo_Master,16,15,791.26,12660.11,20.18,54.83,
+oltp_read_only,Cluster_ProxySQL,16,15,291.27,4660.30,54.84,106.75,
+oltp_read_write,Directo_Master,16,15,267.87,5357.44,59.55,161.51,
+oltp_read_write,Cluster_ProxySQL,16,15,154.42,3088.34,101.77,253.35,

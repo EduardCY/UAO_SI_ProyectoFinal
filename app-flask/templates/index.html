@@ -1,0 +1,1630 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PROXYSQL_L7.EXE — Monitor MySQL 8.0 & Balanceo Capa 7 | UAO</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600;700;800&family=VT323&display=swap" rel="stylesheet">
+    <style>
+        /* =========================================================================
+           ESTILOS NÚCLEO WINDOWS 98 / SCADA RETRO (HOMOLOGADO CON NEXO)
+           ========================================================================= */
+        :root {
+            --nexo-bg: #0b0f19;
+            --nexo-panel: #0d1424;
+            --nexo-canvas: #0b1020;
+            --nexo-os: #d4d0c8;
+            --nexo-win-blue: #000080;
+            --nexo-phosphor: #00e676;
+            --nexo-cyan: #00b0ff;
+            --nexo-amber: #f59e0b;
+            --nexo-violet: #a78bfa;
+            --nexo-alert: #ef4444;
+            --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+            --font-mono: 'JetBrains Mono', 'Consolas', 'Courier New', monospace;
+            --font-vt: 'VT323', 'Consolas', 'Courier New', monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            color: #ffffff;
+            background-color: var(--nexo-bg);
+            background-image:
+                radial-gradient(circle, rgba(56, 189, 248, 0.16) 1px, transparent 1.5px),
+                linear-gradient(to bottom, #0b0f19, #070a12);
+            background-size: 24px 24px, 100% 100%;
+            background-attachment: fixed;
+            min-height: 100vh;
+            font-family: var(--font-sans);
+            -webkit-font-smoothing: antialiased;
+        }
+
+        ::selection {
+            background: #000080;
+            color: #ffffff;
+        }
+
+        /* Biseles Win98 exactos */
+        .bevel-out {
+            background-color: #d4d0c8;
+            box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #ffffff, inset -2px -2px #808080, inset 2px 2px #dfdfdf;
+        }
+
+        .bevel-in {
+            box-shadow: inset -1px -1px #ffffff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+        }
+
+        .bevel-in-dark {
+            box-shadow: inset -1px -1px #3a4666, inset 1px 1px #000000, inset -2px -2px #1c2641, inset 2px 2px #05080f;
+        }
+
+        .window-wrapper {
+            padding: 12px 16px;
+            transition: padding 0.15s ease;
+        }
+
+        .window-wrapper.maximized {
+            padding: 0;
+        }
+
+        .win98-window {
+            max-width: 1440px;
+            margin: 0 auto;
+            padding: 3px;
+            box-shadow: 8px 8px 0 rgba(0, 0, 0, 0.55);
+        }
+
+        .window-wrapper.maximized .win98-window {
+            max-width: none;
+            box-shadow: none;
+        }
+
+        /* Barra de Título Clásica */
+        .titlebar {
+            background: linear-gradient(90deg, #000080 0%, #102a71 60%, #1c4a9e 100%);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 4px 8px;
+        }
+
+        .titlebar-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 18px;
+            height: 18px;
+            background: #0b1020;
+            color: #00e676;
+            font-family: var(--font-mono);
+            font-size: 10px;
+            font-weight: 800;
+            border: 1px solid #808080;
+            flex-shrink: 0;
+        }
+
+        .titlebar-title {
+            flex: 1;
+            color: #ffffff;
+            font-family: var(--font-mono);
+            font-weight: 700;
+            font-size: 13px;
+            letter-spacing: 0.02em;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .titlebar-controls {
+            display: flex;
+            gap: 3px;
+        }
+
+        /* Botones Windows 98 / SCADA */
+        .btn-98 {
+            background-color: #d4d0c8;
+            box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #ffffff, inset -2px -2px #808080, inset 2px 2px #dfdfdf;
+            color: #000000;
+            font-family: var(--font-mono);
+            font-size: 12px;
+            font-weight: 700;
+            padding: 5px 12px;
+            border: none;
+            cursor: pointer;
+            user-select: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            min-height: 28px;
+        }
+
+        .btn-98:hover:not(:disabled) {
+            background-color: #dcd8d0;
+        }
+
+        .btn-98:active:not(:disabled) {
+            box-shadow: inset -1px -1px #ffffff, inset 1px 1px #0a0a0a, inset -2px -2px #dfdfdf, inset 2px 2px #808080;
+            padding-top: 6px;
+            padding-bottom: 4px;
+        }
+
+        .btn-98:focus-visible {
+            outline: 1px dotted #000000;
+            outline-offset: -3px;
+        }
+
+        .btn-ctl {
+            width: 24px;
+            height: 22px;
+            min-height: 22px;
+            padding: 0;
+            font-size: 12px;
+            line-height: 1;
+        }
+
+        .btn-green {
+            background-color: #00c853;
+            color: #00130a;
+            box-shadow: inset -1px -1px #00471f, inset 1px 1px #8affb5, inset -2px -2px #008a38, inset 2px 2px #4cf08a;
+            font-family: var(--font-mono);
+            font-size: 12px;
+            font-weight: 800;
+            letter-spacing: 0.03em;
+            padding: 7px 14px;
+            border: none;
+            cursor: pointer;
+            user-select: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            min-height: 36px;
+        }
+
+        .btn-green:hover { filter: brightness(1.08); }
+        .btn-green:active {
+            box-shadow: inset -1px -1px #8affb5, inset 1px 1px #00471f, inset -2px -2px #4cf08a, inset 2px 2px #008a38;
+        }
+
+        .btn-blue {
+            background-color: #0284c7;
+            color: #ffffff;
+            box-shadow: inset -1px -1px #022f4a, inset 1px 1px #7dd3fc, inset -2px -2px #015a88, inset 2px 2px #38bdf8;
+            font-family: var(--font-mono);
+            font-size: 12px;
+            font-weight: 800;
+            letter-spacing: 0.03em;
+            padding: 7px 14px;
+            border: none;
+            cursor: pointer;
+            user-select: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            min-height: 36px;
+        }
+
+        .btn-blue:hover { filter: brightness(1.08); }
+        .btn-blue:active {
+            box-shadow: inset -1px -1px #7dd3fc, inset 1px 1px #022f4a, inset -2px -2px #38bdf8, inset 2px 2px #015a88;
+        }
+
+        .btn-amber {
+            background-color: #f59e0b;
+            color: #1a0d00;
+            box-shadow: inset -1px -1px #78350f, inset 1px 1px #fde68a, inset -2px -2px #b45309, inset 2px 2px #fcd34d;
+            font-family: var(--font-mono);
+            font-size: 12px;
+            font-weight: 800;
+            letter-spacing: 0.02em;
+            padding: 7px 14px;
+            border: none;
+            cursor: pointer;
+            user-select: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            min-height: 36px;
+        }
+        .btn-amber:hover { filter: brightness(1.06); }
+
+        .btn-danger-98 {
+            background-color: #d4d0c8;
+            color: #991b1b;
+        }
+
+        /* Barra de Menú Win98 */
+        .menubar {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid #808080;
+            background-color: #d4d0c8;
+            padding: 3px 6px;
+            gap: 8px;
+        }
+
+        .menubar-nav {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 2px;
+        }
+
+        .menu-item {
+            background: transparent;
+            border: none;
+            padding: 4px 12px;
+            font-family: var(--font-sans);
+            font-size: 13px;
+            font-weight: 600;
+            color: #000000;
+            cursor: pointer;
+            user-select: none;
+            min-height: 28px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .menu-item:hover {
+            background: #000080;
+            color: #ffffff;
+        }
+
+        .menu-item.active,
+        .menu-item[aria-current="page"] {
+            box-shadow: inset 1px 1px #808080, inset -1px -1px #ffffff;
+            background: #c3bfb5;
+            color: #000000;
+            font-weight: 700;
+        }
+
+        .menu-item u {
+            font-weight: 800;
+        }
+
+        .menubar-status {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 6px;
+            font-family: var(--font-mono);
+            font-size: 10px;
+            color: #000000;
+        }
+
+        .pill-role {
+            background: #000080;
+            color: #ffffff;
+            padding: 3px 8px;
+            font-weight: 700;
+        }
+
+        .pill-online {
+            background: #e0ffd8;
+            color: #14532d;
+            padding: 3px 8px;
+            font-weight: 800;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .pill-tls {
+            background: #ece9d8;
+            color: #000080;
+            padding: 3px 8px;
+            font-weight: 700;
+        }
+
+        .node-pulse {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: #16a34a;
+            animation: node-pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes node-pulse {
+            0%, 100% { opacity: 0.95; transform: scale(1); }
+            50% { opacity: 0.35; transform: scale(1.25); }
+        }
+
+        /* Lienzo Interior SCADA Oscuro (#0b1020) */
+        .scada-workspace {
+            background-color: var(--nexo-canvas);
+            margin: 2px;
+            margin-top: 4px;
+            padding: 14px;
+        }
+
+        .scada-panel {
+            background-color: var(--nexo-panel);
+            color: #e2e8f0;
+            box-shadow: inset -1px -1px #3a4666, inset 1px 1px #000000, inset -2px -2px #1c2641, inset 2px 2px #05080f;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Tarjetas KPI Fosforescentes (KpiCard) */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+
+        .kpi-card {
+            position: relative;
+            overflow: hidden;
+            padding: 12px 14px;
+        }
+
+        .kpi-bar {
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 4px;
+        }
+
+        .kpi-label {
+            padding-left: 8px;
+            font-family: var(--font-mono);
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #94a3b8;
+        }
+
+        .kpi-val {
+            padding-left: 8px;
+            margin-top: 6px;
+            font-family: var(--font-mono);
+            font-size: 26px;
+            font-weight: 800;
+            line-height: 1;
+        }
+
+        .kpi-unit {
+            margin-left: 6px;
+            font-size: 12px;
+            font-weight: 700;
+            opacity: 0.85;
+        }
+
+        .kpi-hint {
+            padding-left: 8px;
+            margin-top: 6px;
+            font-family: var(--font-mono);
+            font-size: 10px;
+            color: #64748b;
+        }
+
+        .text-glow-green { color: #00e676; text-shadow: 0 0 8px rgba(0, 230, 118, 0.55); }
+        .text-glow-cyan { color: #00b0ff; text-shadow: 0 0 8px rgba(0, 176, 255, 0.55); }
+        .text-glow-amber { color: #f59e0b; text-shadow: 0 0 8px rgba(245, 158, 11, 0.55); }
+        .text-glow-violet { color: #a78bfa; text-shadow: 0 0 8px rgba(167, 139, 250, 0.55); }
+
+        /* Grilla Principal Cluster + Control */
+        .cluster-grid {
+            display: grid;
+            grid-template-columns: 7fr 5fr;
+            gap: 14px;
+            margin-bottom: 14px;
+        }
+
+        .panel-hdr {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid #1e293b;
+            padding: 8px 12px;
+        }
+
+        .panel-hdr-title {
+            font-family: var(--font-mono);
+            font-size: 12px;
+            font-weight: 800;
+            letter-spacing: 0.06em;
+            color: #00e676;
+        }
+
+        .panel-hdr-pill {
+            background: #00e676;
+            color: #000000;
+            padding: 2px 8px;
+            font-family: var(--font-mono);
+            font-size: 10px;
+            font-weight: 800;
+        }
+
+        .nodes-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+            padding: 10px;
+        }
+
+        /* Tarjetas de Nodos estilo LotCard.tsx */
+        .node-card {
+            background: #ffffff;
+            color: #000000;
+            padding: 10px 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .node-card-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        .node-hg {
+            font-family: var(--font-mono);
+            font-size: 10px;
+            font-weight: 800;
+            color: #000080;
+            text-transform: uppercase;
+        }
+
+        .server-status {
+            padding: 2px 7px;
+            font-family: var(--font-mono);
+            font-size: 10px;
+            font-weight: 800;
+            white-space: nowrap;
+        }
+
+        .status-online {
+            background: #00e676;
+            color: #001a0a;
+            border: 1px solid #008a38;
+        }
+
+        .status-shunned {
+            background: #ef4444;
+            color: #ffffff;
+            border: 1px solid #7f1d1d;
+        }
+
+        .status-standby {
+            background: #d4d0c8;
+            color: #334155;
+            box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #ffffff;
+        }
+
+        .server-title {
+            font-family: var(--font-mono);
+            font-size: 15px;
+            font-weight: 800;
+            color: #0f172a;
+        }
+
+        .node-stats-row {
+            display: flex;
+            justify-content: space-between;
+            font-family: var(--font-mono);
+            font-size: 11px;
+            color: #334155;
+            border-top: 1px dotted #cbd5e1;
+            padding-top: 4px;
+        }
+
+        .node-stats-val {
+            font-weight: 800;
+            color: #000000;
+        }
+
+        /* Panel Win98 de Acciones y Formularios */
+        .win98-group {
+            background-color: #d4d0c8;
+            color: #000000;
+            padding: 10px;
+        }
+
+        .win98-subbar {
+            background: #000080;
+            color: #ffffff;
+            padding: 5px 10px;
+            font-family: var(--font-mono);
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: 0.03em;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+
+        .actions-stack {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .actions-row-2 {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 8px;
+        }
+
+        .win98-hint-box {
+            background: #ffffe1;
+            color: #0f172a;
+            padding: 8px 10px;
+            font-family: var(--font-mono);
+            font-size: 11px;
+            line-height: 1.4;
+            margin-top: 10px;
+        }
+
+        /* Formularios Retro CRUD (Práctica 9) */
+        .form-grid-4 {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .retro-label {
+            display: block;
+            font-family: var(--font-mono);
+            font-size: 11px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: #1e293b;
+            margin-bottom: 4px;
+        }
+
+        .retro-field {
+            background: #ffffff;
+            color: #000000;
+            font-family: var(--font-mono);
+            font-size: 12px;
+            padding: 7px 10px;
+            width: 100%;
+            border: none;
+            outline: none;
+            min-height: 34px;
+            box-shadow: inset -1px -1px #ffffff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+        }
+
+        .retro-field:focus {
+            background-color: #fffde0;
+        }
+
+        /* Tablas Retro / SCADA */
+        .table-box {
+            overflow-x: auto;
+            margin-top: 12px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-family: var(--font-mono);
+            font-size: 12px;
+        }
+
+        th {
+            background: #000080;
+            color: #ffffff;
+            text-align: left;
+            padding: 8px 10px;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            border-right: 1px solid #3a4666;
+        }
+
+        td {
+            padding: 8px 10px;
+            border-bottom: 1px solid #1e293b;
+            color: #e2e8f0;
+            vertical-align: middle;
+        }
+
+        tr:hover td {
+            background: rgba(2, 132, 199, 0.14);
+        }
+
+        .routing-pill {
+            display: inline-block;
+            padding: 2px 7px;
+            font-family: var(--font-mono);
+            font-size: 10px;
+            font-weight: 800;
+            background: #000080;
+            color: #7dd3fc;
+            border: 1px solid #0284c7;
+            white-space: nowrap;
+        }
+
+        /* Escenarios de Carga 3 Columnas */
+        .load-cards-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+
+        /* Consola CRT (TerminalLog.tsx) */
+        .crt-panel {
+            margin-top: 12px;
+        }
+
+        .crt-header {
+            background: #000080;
+            color: #ffffff;
+            padding: 4px 10px;
+            font-family: var(--font-mono);
+            font-size: 11px;
+            font-weight: 800;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .crt-screen {
+            background: #000000;
+            height: 175px;
+            overflow-y: auto;
+            padding: 8px 10px;
+            font-family: var(--font-vt);
+            font-size: 18px;
+            line-height: 1.18;
+        }
+
+        .crt-line {
+            margin-bottom: 2px;
+            word-break: break-word;
+        }
+
+        .crt-time { color: #64748b; }
+        .crt-info { color: #00b0ff; }
+        .crt-ok { color: #00e676; }
+        .crt-warn { color: #f59e0b; }
+        .crt-err { color: #ef4444; }
+
+        .cursor-blink {
+            display: inline-block;
+            color: #00e676;
+            animation: blink 1s steps(1) infinite;
+        }
+
+        @keyframes blink {
+            50% { opacity: 0; }
+        }
+
+        /* Barra de Estado Inferior (StatusBar WindowFrame) */
+        .statusbar {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px;
+            margin-top: 6px;
+            padding: 2px 4px;
+            font-family: var(--font-mono);
+            font-size: 11px;
+            color: #000000;
+        }
+
+        .status-field {
+            background: #f5f5f5;
+            padding: 5px 10px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .status-left {
+            flex: 1;
+            min-width: 220px;
+        }
+
+        .status-shortcuts {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+        }
+
+        .shortcut-btn {
+            background-color: #ece9d8;
+            padding: 5px 10px;
+            font-family: var(--font-mono);
+            font-size: 11px;
+            font-weight: 800;
+            color: #000000;
+            border: none;
+            cursor: pointer;
+        }
+
+        .shortcut-btn:hover { background-color: #dcd8c8; }
+
+        @media (max-width: 1120px) {
+            .kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .cluster-grid { grid-template-columns: 1fr; }
+            .form-grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .load-cards-grid { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 720px) {
+            .nodes-grid { grid-template-columns: 1fr; }
+            .form-grid-4 { grid-template-columns: 1fr; }
+            .actions-row-2 { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="window-wrapper" id="windowWrapper">
+        <div class="bevel-out win98-window" role="application" aria-label="ProxySQL L7 SCADA Monitor">
+
+            <!-- TitleBar Clásico Windows 98 -->
+            <header class="titlebar">
+                <span class="titlebar-icon" aria-hidden="true">&gt;_</span>
+                <h1 class="titlebar-title">
+                    PROXYSQL_L7.EXE — Monitor SCADA de Clúster MySQL 8.0 (UAO Servicios Telemáticos 2026-02)
+                </h1>
+                <div class="titlebar-controls">
+                    <button type="button" class="btn-98 btn-ctl" title="Minimizar" onclick="addLog('info', 'SYS', 'Ventana minimizada en barra de tareas.');">_</button>
+                    <button type="button" class="btn-98 btn-ctl" id="btnMaximize" title="Maximizar / Restaurar" onclick="toggleMaximize()">□</button>
+                    <button type="button" class="btn-98 btn-ctl" title="Información del Proyecto" onclick="addLog('ok', 'ABOUT', 'ProxySQL 2.6.3 L7 + MySQL 8.0 GTID • Eduard Criollo & Felipe Charria • Prof. Oscar Mondragón');">×</button>
+                </div>
+            </header>
+
+            <!-- MenuBar Windows 98 con iniciales subrayadas e indicadores -->
+            <nav class="menubar" aria-label="Menú principal">
+                <div class="menubar-nav">
+                    <button type="button" class="menu-item tab-btn active" aria-current="page" onclick="switchTab('cluster')">
+                        <span><u>C</u>lúster &amp; ProxySQL L7</span>
+                    </button>
+                    <button type="button" class="menu-item tab-btn" onclick="switchTab('products')">
+                        <span><u>P</u>roductos (Práctica 9)</span>
+                    </button>
+                    <button type="button" class="menu-item tab-btn" onclick="switchTab('users')">
+                        <span><u>U</u>suarios (Práctica 9)</span>
+                    </button>
+                    <button type="button" class="menu-item tab-btn" onclick="switchTab('loadtests')">
+                        <span><u>E</u>scenarios de Carga &amp; Pesos</span>
+                    </button>
+                </div>
+
+                <div class="menubar-status">
+                    <span class="bevel-in pill-role">EQUIPO: E. CRIOLLO &amp; F. CHARRIA</span>
+                    <span class="bevel-in pill-online">
+                        <span class="node-pulse"></span>
+                        CONECTADO :6033
+                    </span>
+                    <span class="bevel-out pill-tls" id="tlsStatusBadge">[TLSv1.3 X.509: ACTIVO]</span>
+                </div>
+            </nav>
+
+            <!-- Área Principal SCADA Oscura (#0b1020) -->
+            <main class="scada-workspace bevel-in-dark">
+
+                <!-- TAB 1: CLÚSTER & MÉTRICAS L7 -->
+                <div id="tab-cluster" class="tab-content active">
+                    <!-- Fila de 4 KpiCard Fosforescentes -->
+                    <div class="kpi-grid">
+                        <section class="scada-panel kpi-card" aria-label="Total Consultas Pool">
+                            <div class="kpi-bar" style="background: #00e676;"></div>
+                            <h2 class="kpi-label">Consultas Pool Capa 7</h2>
+                            <p class="kpi-val text-glow-green"><span id="kpiTotalQueries">--</span><span class="kpi-unit">QRY</span></p>
+                            <p class="kpi-hint">Multiplexing TCP sobre puerto :6033</p>
+                        </section>
+
+                        <section class="scada-panel kpi-card" aria-label="Escrituras Maestro HG10">
+                            <div class="kpi-bar" style="background: #00b0ff;"></div>
+                            <h2 class="kpi-label">Escrituras Maestro (HG 10)</h2>
+                            <p class="kpi-val text-glow-cyan"><span id="kpiMasterQueries">--</span><span class="kpi-unit">HG10</span></p>
+                            <p class="kpi-hint">INSERT / UPDATE / DELETE / FOR UPDATE</p>
+                        </section>
+
+                        <section class="scada-panel kpi-card" aria-label="Lecturas Réplicas HG20">
+                            <div class="kpi-bar" style="background: #f59e0b;"></div>
+                            <h2 class="kpi-label">Lecturas Réplicas (HG 20)</h2>
+                            <p class="kpi-val text-glow-amber"><span id="kpiReplicaQueries">--</span><span class="kpi-unit">HG20</span></p>
+                            <p class="kpi-hint">Balanceo Weighted Round-Robin GTID</p>
+                        </section>
+
+                        <section class="scada-panel kpi-card" aria-label="Reglas PCRE y Caché RAM">
+                            <div class="kpi-bar" style="background: #a78bfa;"></div>
+                            <h2 class="kpi-label">Reglas PCRE &amp; Caché RAM</h2>
+                            <p class="kpi-val text-glow-violet"><span id="kpiRulesHits">--</span><span class="kpi-unit">HITS</span></p>
+                            <p class="kpi-hint">Evaluación SQL + Hints /*+ CACHE */</p>
+                        </section>
+                    </div>
+
+                    <!-- Grilla SCADA Nodos + Panel de Control Windows 98 -->
+                    <div class="cluster-grid">
+                        <section class="scada-panel" aria-label="Nodos del Clúster MySQL">
+                            <div class="panel-hdr">
+                                <span class="panel-hdr-title">▣ TOPOLOGÍA DE NODOS MYSQL 8.0 (GTID SEMI-SYNC)</span>
+                                <span class="panel-hdr-pill" id="onlineNodesCount">3 ACTIVOS</span>
+                            </div>
+
+                            <div class="nodes-grid" id="serversGrid">
+                                <!-- Master -->
+                                <article class="node-card bevel-in">
+                                    <div class="node-card-top">
+                                        <span class="node-hg" id="masterHg">Hostgroup 10 (Master)</span>
+                                        <span class="server-status status-online" id="masterStatusBadge">ONLINE</span>
+                                    </div>
+                                    <div class="server-title">mysql-master</div>
+                                    <div class="node-stats-row"><span>Rol SQL:</span><span class="node-stats-val">Escritura (read_only=0)</span></div>
+                                    <div class="node-stats-row"><span>Sockets Pool:</span><span class="node-stats-val" id="masterConn">--</span></div>
+                                    <div class="node-stats-row"><span>Total Queries:</span><span class="node-stats-val" id="masterQueries">--</span></div>
+                                </article>
+
+                                <!-- Slave 1 -->
+                                <article class="node-card bevel-in">
+                                    <div class="node-card-top">
+                                        <span class="node-hg" id="slave1Hg">Hostgroup 20 (Replica)</span>
+                                        <span class="server-status status-online" id="slave1StatusBadge">ONLINE</span>
+                                    </div>
+                                    <div class="server-title">mysql-slave-1</div>
+                                    <div class="node-stats-row"><span>Rol SQL:</span><span class="node-stats-val">Lectura (GTID Auto-Pos)</span></div>
+                                    <div class="node-stats-row"><span>Sockets Pool:</span><span class="node-stats-val" id="slave1Conn">--</span></div>
+                                    <div class="node-stats-row"><span>Total Queries:</span><span class="node-stats-val" id="slave1Queries">--</span></div>
+                                </article>
+
+                                <!-- Slave 2 -->
+                                <article class="node-card bevel-in">
+                                    <div class="node-card-top">
+                                        <span class="node-hg" id="slave2Hg">Hostgroup 20 (Replica)</span>
+                                        <span class="server-status status-online" id="slave2StatusBadge">ONLINE</span>
+                                    </div>
+                                    <div class="server-title">mysql-slave-2</div>
+                                    <div class="node-stats-row"><span>Rol SQL:</span><span class="node-stats-val">Lectura (GTID Auto-Pos)</span></div>
+                                    <div class="node-stats-row"><span>Sockets Pool:</span><span class="node-stats-val" id="slave2Conn">--</span></div>
+                                    <div class="node-stats-row"><span>Total Queries:</span><span class="node-stats-val" id="slave2Queries">--</span></div>
+                                </article>
+
+                                <!-- Slave 3 -->
+                                <article class="node-card bevel-in">
+                                    <div class="node-card-top">
+                                        <span class="node-hg" id="slave3Hg">Hostgroup 20 (Escala)</span>
+                                        <span class="server-status status-standby" id="slave3StatusBadge">STANDBY</span>
+                                    </div>
+                                    <div class="server-title">mysql-slave-3</div>
+                                    <div class="node-stats-row"><span>Rol SQL:</span><span class="node-stats-val">Escalamiento Caliente</span></div>
+                                    <div class="node-stats-row"><span>Sockets Pool:</span><span class="node-stats-val" id="slave3Conn">0</span></div>
+                                    <div class="node-stats-row"><span>Total Queries:</span><span class="node-stats-val" id="slave3Queries">0</span></div>
+                                </article>
+                            </div>
+                        </section>
+
+                        <!-- Panel Win98 de Telemetría y Operación -->
+                        <section class="bevel-out win98-group" aria-label="Panel de Control Operativo">
+                            <div class="win98-subbar">
+                                <span>PANEL DE ENRUTAMIENTO Y TELEMETRÍA L7</span>
+                                <span>PUERTO :6033</span>
+                            </div>
+
+                            <div class="actions-stack">
+                                <button type="button" class="btn-green" onclick="testWriteTelemetry()">
+                                    <span>[POST]</span> Insertar Telemetría IoT (Write Split &rarr; HG 10)
+                                </button>
+                                <button type="button" class="btn-blue" onclick="testReadTelemetry()">
+                                    <span>[GET]</span> Consultar Telemetría IoT (Read Split &rarr; HG 20)
+                                </button>
+                                <button type="button" class="btn-amber" onclick="testQueryCache()">
+                                    <span>[RAM]</span> Query Cache /*+ CACHE */ (Sub-milisegundo)
+                                </button>
+                                <div class="actions-row-2">
+                                    <button type="button" class="btn-98" onclick="triggerBurstTest()">
+                                        <span>🚀</span> Ráfaga (35 Tx)
+                                    </button>
+                                    <button type="button" class="btn-98" onclick="refreshStats()">
+                                        <span>↻</span> Refrescar Pool
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="bevel-in win98-hint-box">
+                                <strong style="color: #000080;">Arquitectura Zero-Flake:</strong> ProxySQL separa lecturas y escrituras mediante 6 reglas PCRE compiladas sin alterar el código cliente ni exponer el puerto 3306 al host.
+                            </div>
+                        </section>
+                    </div>
+                </div>
+
+                <!-- TAB 2: CATÁLOGO DE PRODUCTOS (PRÁCTICA 9) -->
+                <div id="tab-products" class="tab-content">
+                    <div class="bevel-out win98-group">
+                        <div class="win98-subbar">
+                            <span>CATÁLOGO DE PRODUCTOS — APLICACIÓN WEB TRANSACCIONAL (PRÁCTICA 9)</span>
+                            <span>ESCRITURAS HG 10 | LECTURAS HG 20</span>
+                        </div>
+
+                        <div class="form-grid-4">
+                            <div>
+                                <label class="retro-label" for="prodName">Nombre del Producto *</label>
+                                <input type="text" id="prodName" class="retro-field" placeholder="Ej: Firewall UTM Gigabit" />
+                            </div>
+                            <div>
+                                <label class="retro-label" for="prodDesc">Descripción Técnica</label>
+                                <input type="text" id="prodDesc" class="retro-field" placeholder="Ej: Appliance seguridad L7" />
+                            </div>
+                            <div>
+                                <label class="retro-label" for="prodPrice">Precio ($ USD)</label>
+                                <input type="number" step="0.01" id="prodPrice" class="retro-field" placeholder="299.99" />
+                            </div>
+                            <div>
+                                <label class="retro-label" for="prodStock">Stock Disponible</label>
+                                <input type="number" id="prodStock" class="retro-field" placeholder="15" />
+                            </div>
+                        </div>
+
+                        <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                            <button type="button" class="btn-green" onclick="createProduct()">
+                                + Guardar Producto en Clúster
+                            </button>
+                            <button type="button" class="btn-98" onclick="loadProducts()">
+                                ↻ Recargar Catálogo (Read Split HG 20)
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="scada-panel table-box">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Producto</th>
+                                    <th>Descripción Técnica</th>
+                                    <th>Precio USD</th>
+                                    <th>Stock</th>
+                                    <th>Enrutamiento ProxySQL</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="productsTableBody">
+                                <tr>
+                                    <td colspan="7" style="text-align: center; color: #94a3b8;">Cargando catálogo de productos...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- TAB 3: GESTIÓN DE USUARIOS (PRÁCTICA 9) -->
+                <div id="tab-users" class="tab-content">
+                    <div class="bevel-out win98-group">
+                        <div class="win98-subbar">
+                            <span>GESTIÓN DE USUARIOS — DIRECTORIO INSTITUCIONAL (PRÁCTICA 9)</span>
+                            <span>ESCRITURAS HG 10 | LECTURAS HG 20</span>
+                        </div>
+
+                        <div class="form-grid-4">
+                            <div>
+                                <label class="retro-label" for="userName">Nombre Completo *</label>
+                                <input type="text" id="userName" class="retro-field" placeholder="Ej: Valentina Ríos" />
+                            </div>
+                            <div>
+                                <label class="retro-label" for="userEmail">Correo Electrónico *</label>
+                                <input type="email" id="userEmail" class="retro-field" placeholder="valentina.rios@uao.edu.co" />
+                            </div>
+                            <div>
+                                <label class="retro-label" for="userUsername">Nombre de Usuario *</label>
+                                <input type="text" id="userUsername" class="retro-field" placeholder="vrios" />
+                            </div>
+                            <div>
+                                <label class="retro-label" for="userPass">Contraseña</label>
+                                <input type="password" id="userPass" class="retro-field" placeholder="ClaveTelematica2026!" />
+                            </div>
+                        </div>
+
+                        <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                            <button type="button" class="btn-green" onclick="createUser()">
+                                + Crear Usuario en Clúster
+                            </button>
+                            <button type="button" class="btn-98" onclick="loadUsers()">
+                                ↻ Recargar Usuarios (Read Split HG 20)
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="scada-panel table-box">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Nombre</th>
+                                    <th>Correo Institucional</th>
+                                    <th>Username</th>
+                                    <th>Fecha Creación</th>
+                                    <th>Enrutamiento ProxySQL</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="usersTableBody">
+                                <tr>
+                                    <td colspan="7" style="text-align: center; color: #94a3b8;">Cargando directorio de usuarios...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- TAB 4: ESCENARIOS DE CARGA & PESOS -->
+                <div id="tab-loadtests" class="tab-content">
+                    <div class="load-cards-grid">
+                        <article class="bevel-out win98-group">
+                            <div class="win98-subbar" style="background: #065f46;">
+                                <span>CARGA BAJA (4 HILOS)</span>
+                                <span>IOT NOMINAL</span>
+                            </div>
+                            <div class="node-stats-row"><span>Throughput Medido:</span><span class="node-stats-val">1,752.81 QPS / 109.55 TPS</span></div>
+                            <div class="node-stats-row"><span>Latencia Media:</span><span class="node-stats-val">36.44 ms</span></div>
+                            <div class="node-stats-row"><span>Percentil 95 (p95):</span><span class="node-stats-val">64.47 ms</span></div>
+                            <button type="button" class="btn-green" style="width: 100%; margin-top: 10px;" onclick="runParametricTest(4)">
+                                Disparar Carga 4 Hilos
+                            </button>
+                        </article>
+
+                        <article class="bevel-out win98-group">
+                            <div class="win98-subbar">
+                                <span>CARGA MEDIA (16 HILOS)</span>
+                                <span>ESTÁNDAR OLTP</span>
+                            </div>
+                            <div class="node-stats-row"><span>Throughput Medido:</span><span class="node-stats-val">3,172.96 QPS / 198.31 TPS</span></div>
+                            <div class="node-stats-row"><span>Latencia Media:</span><span class="node-stats-val">80.48 ms</span></div>
+                            <div class="node-stats-row"><span>Percentil 95 (p95):</span><span class="node-stats-val">158.63 ms</span></div>
+                            <button type="button" class="btn-blue" style="width: 100%; margin-top: 10px;" onclick="runParametricTest(16)">
+                                Disparar Carga 16 Hilos
+                            </button>
+                        </article>
+
+                        <article class="bevel-out win98-group">
+                            <div class="win98-subbar" style="background: #7f1d1d;">
+                                <span>CARGA ALTA (64 HILOS)</span>
+                                <span>ESTRÉS DE POOL</span>
+                            </div>
+                            <div class="node-stats-row"><span>Throughput Medido:</span><span class="node-stats-val">3,981.73 QPS / 248.86 TPS</span></div>
+                            <div class="node-stats-row"><span>Latencia Media:</span><span class="node-stats-val">255.04 ms</span></div>
+                            <div class="node-stats-row"><span>Percentil 95 (p95):</span><span class="node-stats-val">511.33 ms</span></div>
+                            <button type="button" class="btn-98 btn-danger-98" style="width: 100%; min-height: 36px; margin-top: 10px;" onclick="runParametricTest(64)">
+                                Disparar Carga 64 Hilos
+                            </button>
+                        </article>
+                    </div>
+
+                    <div class="scada-panel table-box">
+                        <div class="panel-hdr">
+                            <span class="panel-hdr-title">▣ COMPARATIVA DE PESOS EN PROXYSQL (HOSTGROUP 20)</span>
+                            <span class="panel-hdr-pill">PRUEBAS B1 / B2 / B3</span>
+                        </div>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Escenario</th>
+                                    <th>Configuración de Pesos</th>
+                                    <th>Distribución Teórica</th>
+                                    <th>Distribución Empírica</th>
+                                    <th>Caso de Uso Telemático</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><strong>B1: Simétrico</strong></td>
+                                    <td><code>slave-1: 1000 | slave-2: 1000</code></td>
+                                    <td>50.0% / 50.0%</td>
+                                    <td style="color: #00e676; font-weight: 800;">52.0% / 48.0%</td>
+                                    <td>Nodos homogéneos en cómputo y memoria.</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>B2: Asimétrico</strong></td>
+                                    <td><code>slave-1: 3000 | slave-2: 1000</code></td>
+                                    <td>75.0% / 25.0%</td>
+                                    <td style="color: #00b0ff; font-weight: 800;">77.0% / 23.0%</td>
+                                    <td>Nodo primario con mayor CPU / NVMe dedicado.</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>B3: Horizontal (3 Nodos)</strong></td>
+                                    <td><code>slave-1: 1000 | slave-2: 1000 | slave-3: 1000</code></td>
+                                    <td>33.3% / 33.3% / 33.3%</td>
+                                    <td style="color: #f59e0b; font-weight: 800;">33.3% / 33.3% / 33.4%</td>
+                                    <td>Escalamiento en caliente ante picos de demanda.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Monitor CRT Persistente (TerminalLog.tsx) -->
+                <section class="crt-panel scada-panel" aria-label="Consola de auditoría CRT">
+                    <div class="crt-header">
+                        <span>MONITOR CRT EN VIVO — AUDITORÍA DE ENRUTAMIENTO CAPA 7 (PROXYSQL :6033)</span>
+                        <span id="terminalSubtitle">STDERR/AUDIT STREAM</span>
+                    </div>
+                    <div id="logContainer" class="crt-screen" role="log" aria-live="polite">
+                        <div class="crt-line crt-ok">
+                            <span class="crt-time">[SISTEMA]</span> ✔ PROXYSQL_L7.EXE inicializado. Monitoreando tráfico :6033 y SQLite Admin :6032.
+                        </div>
+                        <div id="crtPrompt" class="crt-line crt-ok">&gt; <span class="cursor-blink">█</span></div>
+                    </div>
+                </section>
+            </main>
+
+            <!-- Barra de Estado Inferior Windows 98 (WindowFrame footer) -->
+            <footer class="statusbar">
+                <div class="bevel-in status-field status-left" id="statusBarLeft">
+                    Estado: Clúster Operativo | ProxySQL :6033 (HG 10 / HG 20) | GTID Semi-Sync Activo
+                </div>
+                <div class="status-shortcuts">
+                    <button type="button" class="bevel-out shortcut-btn" onclick="switchTab('cluster')">🖥 Clúster</button>
+                    <button type="button" class="bevel-out shortcut-btn" onclick="switchTab('products')">📦 Productos</button>
+                    <button type="button" class="bevel-out shortcut-btn" onclick="switchTab('users')">👥 Usuarios</button>
+                    <button type="button" class="bevel-out shortcut-btn" onclick="switchTab('loadtests')">⚖ Cargas</button>
+                </div>
+                <div class="bevel-in status-field" id="statusBarRight">
+                    UAO Servicios Telemáticos 2026-02
+                </div>
+            </footer>
+        </div>
+    </div>
+
+    <script>
+        function toggleMaximize() {
+            const w = document.getElementById('windowWrapper');
+            const btn = document.getElementById('btnMaximize');
+            const isMax = w.classList.toggle('maximized');
+            btn.innerText = isMax ? '❐' : '□';
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+                btn.removeAttribute('aria-current');
+            });
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+
+            const targetBtn = Array.from(document.querySelectorAll('.tab-btn')).find(
+                b => (b.getAttribute('onclick') || '').includes(`'${tabId}'`)
+            );
+            if (targetBtn) {
+                targetBtn.classList.add('active');
+                targetBtn.setAttribute('aria-current', 'page');
+            }
+
+            const targetContent = document.getElementById('tab-' + tabId);
+            if (targetContent) targetContent.classList.add('active');
+
+            if (tabId === 'products') loadProducts();
+            if (tabId === 'users') loadUsers();
+            if (tabId === 'cluster') refreshStats();
+        }
+
+        function addLog(levelOrBadge, tag, message) {
+            const container = document.getElementById('logContainer');
+            const promptEl = document.getElementById('crtPrompt');
+            const now = new Date().toLocaleTimeString();
+
+            let cssClass = 'crt-info';
+            let sym = '>';
+            if (levelOrBadge === 'ok' || levelOrBadge === 'badge-read' || levelOrBadge === 'badge-write') {
+                cssClass = 'crt-ok';
+                sym = '✔';
+            }
+            if (levelOrBadge === 'badge-write') {
+                cssClass = 'crt-info';
+                sym = '>';
+            }
+            if (levelOrBadge === 'warn' || levelOrBadge === 'badge-cache') {
+                cssClass = 'crt-warn';
+                sym = '!';
+            }
+            if (tag.includes('FAIL') || tag.includes('ERR') || levelOrBadge === 'err') {
+                cssClass = 'crt-err';
+                sym = '!';
+            }
+
+            const div = document.createElement('div');
+            div.className = `crt-line ${cssClass}`;
+            div.innerHTML = `<span class="crt-time">[${now}]</span> ${sym} <strong>[${tag}]</strong> ${message}`;
+
+            container.insertBefore(div, promptEl);
+            const lines = container.querySelectorAll('.crt-line:not(#crtPrompt)');
+            if (lines.length > 60) {
+                lines[0].remove();
+            }
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function setStatusLeft(text) {
+            const el = document.getElementById('statusBarLeft');
+            if (el) el.innerText = text;
+        }
+
+        // ==========================================
+        // PRODUCTOS CRUD (Práctica 9)
+        // ==========================================
+        async function loadProducts() {
+            try {
+                addLog('info', 'READ-REQ', 'Consultando GET /api/products (Read Split -> HG 20)...');
+                const res = await fetch('/api/products');
+                const data = await res.json();
+                const tbody = document.getElementById('productsTableBody');
+                tbody.innerHTML = '';
+
+                if (data.success && data.data) {
+                    addLog('ok', 'HG 20', `Catálogo leído desde ${data.handled_by} (server_id: ${data.server_id}) en ${data.latency_ms} ms. Total: ${data.record_count} items.`);
+                    setStatusLeft(`Última consulta: GET /api/products atendida por ${data.handled_by} (${data.latency_ms} ms)`);
+                    data.data.forEach(p => {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td><strong>#${p.id}</strong></td>
+                            <td style="font-weight: 700; color: #ffffff;">${p.name}</td>
+                            <td style="color: #94a3b8;">${p.description || '--'}</td>
+                            <td style="color: #00e676; font-weight: 700;">$${parseFloat(p.price).toFixed(2)}</td>
+                            <td>${p.stock} uds</td>
+                            <td><span class="routing-pill">Atendido por: ${data.handled_by}</span></td>
+                            <td>
+                                <button type="button" class="btn-98 btn-danger-98" style="padding: 3px 8px; min-height: 24px; font-size: 11px;" onclick="deleteProduct(${p.id})">
+                                    Eliminar
+                                </button>
+                            </td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+                } else {
+                    tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: #ef4444;">Error cargando productos: ${data.error}</td></tr>`;
+                }
+            } catch (err) {
+                addLog('err', 'FAIL', err.message);
+            }
+        }
+
+        async function createProduct() {
+            const name = document.getElementById('prodName').value.trim();
+            const description = document.getElementById('prodDesc').value.trim();
+            const price = parseFloat(document.getElementById('prodPrice').value || 0);
+            const stock = parseInt(document.getElementById('prodStock').value || 0);
+
+            if (!name) {
+                alert('El nombre del producto es obligatorio.');
+                return;
+            }
+
+            try {
+                addLog('info', 'WRITE-REQ', `Enviando POST /api/products ('${name}') a ProxySQL:6033...`);
+                const res = await fetch('/api/products', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, description, price, stock })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    addLog('ok', 'HG 10', `Producto creado en ${data.handled_by} (ID: ${data.inserted_id}) en ${data.latency_ms} ms.`);
+                    setStatusLeft(`Escritura: POST /api/products ejecutada en ${data.handled_by} (HG 10)`);
+                    document.getElementById('prodName').value = '';
+                    document.getElementById('prodDesc').value = '';
+                    document.getElementById('prodPrice').value = '';
+                    document.getElementById('prodStock').value = '';
+                    loadProducts();
+                    refreshStats();
+                } else {
+                    addLog('err', 'ERROR', data.error || data.message);
+                }
+            } catch (err) {
+                addLog('err', 'FAIL', err.message);
+            }
+        }
+
+        async function deleteProduct(id) {
+            if (!confirm(`¿Eliminar físicamente el producto ID ${id} del clúster?`)) return;
+            try {
+                addLog('info', 'WRITE-REQ', `Enviando DELETE /api/products/${id} a ProxySQL:6033 (Maestro HG 10)...`);
+                const res = await fetch(`/api/products/${id}`, { method: 'DELETE' });
+                const data = await res.json();
+                if (data.success) {
+                    addLog('ok', 'HG 10', `Producto ID ${id} eliminado en ${data.handled_by} en ${data.latency_ms} ms.`);
+                    loadProducts();
+                    refreshStats();
+                } else {
+                    addLog('err', 'ERROR', data.error);
+                }
+            } catch (err) {
+                addLog('err', 'FAIL', err.message);
+            }
+        }
+
+        // ==========================================
+        // USUARIOS CRUD (Práctica 9)
+        // ==========================================
+        async function loadUsers() {
+            try {
+                addLog('info', 'READ-REQ', 'Consultando GET /api/users (Read Split -> HG 20)...');
+                const res = await fetch('/api/users');
+                const data = await res.json();
+                const tbody = document.getElementById('usersTableBody');
+                tbody.innerHTML = '';
+
+                if (data.success && data.data) {
+                    addLog('ok', 'HG 20', `Usuarios leídos desde ${data.handled_by} (server_id: ${data.server_id}) en ${data.latency_ms} ms. Total: ${data.record_count} usuarios.`);
+                    setStatusLeft(`Última consulta: GET /api/users atendida por ${data.handled_by} (${data.latency_ms} ms)`);
+                    data.data.forEach(u => {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td><strong>#${u.id}</strong></td>
+                            <td style="font-weight: 700; color: #ffffff;">${u.name}</td>
+                            <td style="color: #7dd3fc;">${u.email}</td>
+                            <td><code style="color: #f59e0b;">@${u.username}</code></td>
+                            <td style="color: #94a3b8; font-size: 11px;">${u.created_at || '--'}</td>
+                            <td><span class="routing-pill">Atendido por: ${data.handled_by}</span></td>
+                            <td>
+                                <button type="button" class="btn-98 btn-danger-98" style="padding: 3px 8px; min-height: 24px; font-size: 11px;" onclick="deleteUser(${u.id})">
+                                    Eliminar
+                                </button>
+                            </td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+                } else {
+                    tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: #ef4444;">Error cargando usuarios: ${data.error}</td></tr>`;
+                }
+            } catch (err) {
+                addLog('err', 'FAIL', err.message);
+            }
+        }
+
+        async function createUser() {
+            const name = document.getElementById('userName').value.trim();
+            const email = document.getElementById('userEmail').value.trim();
+            const username = document.getElementById('userUsername').value.trim();
+            const password = document.getElementById('userPass').value.trim() || 'Password2026!';
+
+            if (!name || !email || !username) {
+                alert('Nombre, correo y usuario son requeridos.');
+                return;
+            }
+
+            try {
+                addLog('info', 'WRITE-REQ', `Enviando POST /api/users ('${username}') a ProxySQL:6033...`);
+                const res = await fetch('/api/users', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, email, username, password })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    addLog('ok', 'HG 10', `Usuario creado en ${data.handled_by} (ID: ${data.inserted_id}) en ${data.latency_ms} ms.`);
+                    setStatusLeft(`Escritura: POST /api/users ejecutada en ${data.handled_by} (HG 10)`);
+                    document.getElementById('userName').value = '';
+                    document.getElementById('userEmail').value = '';
+                    document.getElementById('userUsername').value = '';
+                    document.getElementById('userPass').value = '';
+                    loadUsers();
+                    refreshStats();
+                } else {
+                    addLog('err', 'ERROR', data.error || data.message);
+                }
+            } catch (err) {
+                addLog('err', 'FAIL', err.message);
+            }
+        }
+
+        async function deleteUser(id) {
+            if (!confirm(`¿Eliminar al usuario ID ${id} del clúster?`)) return;
+            try {
+                addLog('info', 'WRITE-REQ', `Enviando DELETE /api/users/${id} a ProxySQL:6033 (Maestro HG 10)...`);
+                const res = await fetch(`/api/users/${id}`, { method: 'DELETE' });
+                const data = await res.json();
+                if (data.success) {
+                    addLog('ok', 'HG 10', `Usuario ID ${id} eliminado en ${data.handled_by} en ${data.latency_ms} ms.`);
+                    loadUsers();
+                    refreshStats();
+                } else {
+                    addLog('err', 'ERROR', data.error);
+                }
+            } catch (err) {
+                addLog('err', 'FAIL', err.message);
+            }
+        }
+
+        // ==========================================
+        // TELEMETRÍA Y ACCIONES RÁPIDAS
+        // ==========================================
+        async function testWriteTelemetry() {
+            try {
+                addLog('info', 'WRITE-REQ', 'Enviando INSERT INTO iot_telemetry a ProxySQL:6033...');
+                const res = await fetch('/api/telemetry', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        device_id: 'UAO-DEMO-SENS-' + Math.floor(Math.random() * 900 + 100),
+                        sensor_type: 'temperature',
+                        metric_value: (22.0 + Math.random() * 5.0).toFixed(2),
+                        location: 'Laboratorio de Servicios Telemáticos - UAO'
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    addLog('ok', 'HG 10', `INSERT exitoso en ${data.handled_by} (ID: ${data.inserted_id}) en ${data.latency_ms} ms. Destino: ${data.hostgroup_target}`);
+                    setStatusLeft(`Escritura IoT: INSERT confirmado por ${data.handled_by} (${data.latency_ms} ms)`);
+                } else {
+                    addLog('err', 'ERROR', data.error);
+                }
+                refreshStats();
+            } catch (err) {
+                addLog('err', 'FAIL', err.message);
+            }
+        }
+
+        async function testReadTelemetry() {
+            try {
+                addLog('info', 'READ-REQ', 'Enviando SELECT a ProxySQL:6033...');
+                const res = await fetch('/api/telemetry');
+                const data = await res.json();
+                if (data.success) {
+                    addLog('ok', 'HG 20', `SELECT atendido por ${data.handled_by} (server_id: ${data.server_id}) en ${data.latency_ms} ms.`);
+                    setStatusLeft(`Lectura IoT: SELECT balanceado hacia ${data.handled_by} (${data.latency_ms} ms)`);
+                } else {
+                    addLog('err', 'ERROR', data.error);
+                }
+                refreshStats();
+            } catch (err) {
+                addLog('err', 'FAIL', err.message);
+            }
+        }
+
+        async function testQueryCache() {
+            try {
+                addLog('warn', 'CACHE-REQ', 'Enviando SELECT /*+ CACHE */ a ProxySQL:6033...');
+                const res = await fetch('/api/telemetry/cached');
+                const data = await res.json();
+                if (data.success) {
+                    addLog('warn', 'RAM HIT', `Query Cache aceleró consulta a ${data.latency_ms} ms (TTL: ${data.cache_ttl_sec}s). Cero carga en discos MySQL.`);
+                    setStatusLeft(`Query Cache RAM: Hit en ${data.latency_ms} ms (TTL ${data.cache_ttl_sec}s)`);
+                } else {
+                    addLog('err', 'ERROR', data.error);
+                }
+                refreshStats();
+            } catch (err) {
+                addLog('err', 'FAIL', err.message);
+            }
+        }
+
+        async function triggerBurstTest() {
+            try {
+                addLog('info', 'BURST', 'Disparando ráfaga de 30 lecturas y 5 escrituras simultáneas...');
+                const res = await fetch('/api/cluster/burst', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ reads: 30, writes: 5 })
+                });
+                const data = await res.json();
+                const dist = JSON.stringify(data.hosts_distribution);
+                addLog('ok', 'BURST DONE', `Ráfaga completada en ${data.total_duration_ms} ms. Distribución: ${dist}`);
+                setStatusLeft(`Ráfaga 35 Tx completada (${data.total_duration_ms} ms)`);
+                refreshStats();
+            } catch (err) {
+                addLog('err', 'BURST FAIL', err.message);
+            }
+        }
+
+        async function runParametricTest(threads) {
+            addLog('info', 'PARAMETRIC', `Ejecutando prueba paramétrica con concurrencia de ${threads} hilos...`);
+            const reads = threads * 5;
+            const writes = Math.max(2, Math.floor(threads / 2));
+            try {
+                const res = await fetch('/api/cluster/burst', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ reads, writes })
+                });
+                const data = await res.json();
+                addLog('ok', `${threads} HILOS`, `Ejecutadas ${data.total_requests} transacciones en ${data.total_duration_ms} ms. Nodos: ${JSON.stringify(data.hosts_distribution)}`);
+                setStatusLeft(`Carga ${threads} hilos: ${data.total_requests} Tx en ${data.total_duration_ms} ms`);
+                refreshStats();
+            } catch (err) {
+                addLog('err', 'ERROR', err.message);
+            }
+        }
+
+        function applyNodeStats(prefix, label, srv) {
+            const connEl = document.getElementById(prefix + 'Conn');
+            const queriesEl = document.getElementById(prefix + 'Queries');
+            const badge = document.getElementById(prefix + 'StatusBadge');
+            const hgEl = document.getElementById(prefix + 'Hg');
+            if (connEl) connEl.innerText = `${srv.ConnUsed} usadas / ${srv.ConnFree} libres`;
+            if (queriesEl) queriesEl.innerText = srv.Queries;
+            if (hgEl) {
+                const hg = String(srv.hostgroup_id);
+                hgEl.innerText = hg === '10' ? 'Hostgroup 10 (Master)' : `Hostgroup ${hg} (${label})`;
+            }
+            if (badge) {
+                const rawStatus = String(srv.status || 'ONLINE');
+                badge.title = rawStatus;
+                badge.innerText = rawStatus.startsWith('SHUNNED') ? 'SHUNNED' : rawStatus;
+                badge.className = rawStatus === 'ONLINE'
+                    ? 'server-status status-online'
+                    : 'server-status status-shunned';
+            }
+        }
+
+        async function refreshStats() {
+            try {
+                const res = await fetch('/api/cluster/stats');
+                const data = await res.json();
+                if (data.success && data.connection_pool) {
+                    const seen = new Set();
+                    let totalQ = 0;
+                    let masterQ = 0;
+                    let replicaQ = 0;
+                    let onlineCount = 0;
+
+                    const nodeMap = {
+                        'mysql-master': ['master', 'Master'],
+                        'mysql-slave-1': ['slave1', 'Replica'],
+                        'mysql-slave-2': ['slave2', 'Replica'],
+                        'mysql-slave-3': ['slave3', 'Escala']
+                    };
+
+                    data.connection_pool.forEach(srv => {
+                        const q = parseInt(srv.Queries || 0, 10);
+                        totalQ += q;
+                        if (String(srv.hostgroup_id) === '10') masterQ += q;
+                        if (String(srv.hostgroup_id) === '20') replicaQ += q;
+                        if (String(srv.status) === 'ONLINE') onlineCount += 1;
+
+                        const cfg = nodeMap[srv.hostname];
+                        if (cfg) {
+                            seen.add(srv.hostname);
+                            applyNodeStats(cfg[0], cfg[1], srv);
+                        }
+                    });
+
+                    if (!seen.has('mysql-slave-3')) {
+                        const badge3 = document.getElementById('slave3StatusBadge');
+                        badge3.innerText = 'STANDBY';
+                        badge3.className = 'server-status status-standby';
+                        document.getElementById('slave3Conn').innerText = '0';
+                        document.getElementById('slave3Queries').innerText = '0';
+                    }
+
+                    let rulesTotal = 0;
+                    if (Array.isArray(data.rules_hits)) {
+                        data.rules_hits.forEach(r => { rulesTotal += parseInt(r.hits || 0, 10); });
+                    }
+
+                    document.getElementById('kpiTotalQueries').innerText = totalQ.toLocaleString('es-CO');
+                    document.getElementById('kpiMasterQueries').innerText = masterQ.toLocaleString('es-CO');
+                    document.getElementById('kpiReplicaQueries').innerText = replicaQ.toLocaleString('es-CO');
+                    document.getElementById('kpiRulesHits').innerText = rulesTotal.toLocaleString('es-CO');
+                    document.getElementById('onlineNodesCount').innerText = `${onlineCount} ONLINE`;
+                }
+            } catch (err) {
+                console.warn('Error refreshing stats:', err);
+            }
+        }
+
+        setInterval(refreshStats, 3000);
+        refreshStats();
+    </script>
+</body>
+</html>

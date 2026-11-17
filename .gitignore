@@ -1,0 +1,31 @@
+# Environment variables with local secrets
+.env
+.env.local
+
+# Python cache & local virtual environments
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+
+# Docker volumes and runtime artifacts
+*.pid
+*.sock
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Excluded non-repo / presentation / media / raw report assets
+presentacion/*
+!presentacion/Presentacion_Proyecto4_ProxySQL.pdf
+video/
+informe_ieee/
+app-flask/informe_ieee/
+docs/*
+!docs/Informe_IEEE_Proyecto4_ProxySQL.pdf
+AUDITORIA_Y_ESPECIFICACION_TECNICA.md
+scripts/record_real_demo_video.py
+2026-02 proyectos_Stelematicos.pdf
+Presentacion Proyecto Final 2026-02.pdf

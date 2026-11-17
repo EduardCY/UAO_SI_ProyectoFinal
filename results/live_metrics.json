@@ -1,0 +1,41 @@
+{
+  "failover_detection_sec": 4.44,
+  "failover_reads_ok_pct": 100.0,
+  "promoted_writer_host": "mysql-slave-1",
+  "restored_topology_ok": true,
+  "pooling_clients": 120,
+  "pooling_backend_sockets": 21,
+  "pooling_conn_err": 0,
+  "pooling_total_queries": 142,
+  "qcache_nocache_ms": 26.703,
+  "qcache_ram_ms": 1.103,
+  "qcache_speedup_x": 24.2,
+  "qcache_get_ok": 77,
+  "qcache_entries": 5,
+  "qcache_mem_bytes": 21389,
+  "tls_cipher": "TLS_AES_256_GCM_SHA384",
+  "tls_version": "TLSv1.3",
+  "weights_b1": {
+    "slave_1_queries": 89,
+    "slave_2_queries": 111,
+    "slave_1_pct": 44.5,
+    "slave_2_pct": 55.5,
+    "total": 200
+  },
+  "weights_b2": {
+    "slave_1_queries": 153,
+    "slave_2_queries": 47,
+    "slave_1_pct": 76.5,
+    "slave_2_pct": 23.5,
+    "total": 200
+  },
+  "scale_3_nodes": {
+    "slave_1_queries": 53,
+    "slave_2_queries": 55,
+    "slave_3_queries": 42,
+    "slave_1_pct": 35.3,
+    "slave_2_pct": 36.7,
+    "slave_3_pct": 28.0,
+    "total": 150
+  }
+}

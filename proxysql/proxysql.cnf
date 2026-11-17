@@ -1,0 +1,160 @@
+# ==============================================================================
+# PROYECTO 4: CONFIGURACIÓN OFICIAL PROXYSQL 2.x (CAPA 7)
+# Servicios Telemáticos — Universidad Autónoma de Occidente
+# ==============================================================================
+
+admin_variables =
+{
+    admin_credentials = "admin:admin;radmin:radmin"
+    mysql_ifaces = "0.0.0.0:6032"
+    refresh_interval = 2000
+}
+
+mysql_variables =
+{
+    threads = 4
+    max_connections = 2048
+    default_schema = "telematicos_db"
+    interfaces = "0.0.0.0:6033"
+    default_query_delay = 0
+    default_query_timeout = 36000000
+    have_ssl = true
+    poll_timeout = 2000
+    query_cache_handle_warnings = 1
+
+    # Monitoreo Activo de Clúster MySQL
+    monitor_username = "monitor"
+    monitor_password = "MonitorPassword2026!"
+    monitor_history = 60000
+    monitor_connect_interval = 1000
+    monitor_ping_interval = 1000
+    monitor_read_only_interval = 1000
+    monitor_read_only_timeout = 500
+    monitor_replication_lag_interval = 2000
+    monitor_slave_lag_when_null = 0
+    monitor_writer_is_also_reader = false
+}
+
+# ------------------------------------------------------------------------------
+# SERVIDORES BACKEND (HG 10: Escritura | HG 20: Lectura)
+# ------------------------------------------------------------------------------
+mysql_servers =
+(
+    {
+        address = "mysql-master"
+        port = 3306
+        hostgroup = 10
+        max_connections = 100
+        weight = 1000
+        max_replication_lag = 10
+        comment = "Master - Escrituras"
+    },
+    {
+        address = "mysql-slave-1"
+        port = 3306
+        hostgroup = 20
+        max_connections = 100
+        weight = 1000
+        max_replication_lag = 10
+        comment = "Slave 1 - Lecturas"
+    },
+    {
+        address = "mysql-slave-2"
+        port = 3306
+        hostgroup = 20
+        max_connections = 100
+        weight = 1000
+        max_replication_lag = 10
+        comment = "Slave 2 - Lecturas"
+    }
+)
+
+# ------------------------------------------------------------------------------
+# GESTIÓN DE REPLICACIÓN Y FAILOVER BASADO EN read_only
+# ------------------------------------------------------------------------------
+mysql_replication_hostgroups =
+(
+    {
+        writer_hostgroup = 10
+        reader_hostgroup = 20
+        check_type = "read_only"
+        comment = "Cluster MySQL 8.0 GTID Read/Write Split"
+    }
+)
+
+# ------------------------------------------------------------------------------
+# USUARIOS DE APLICACIÓN Y BLINDAJE TRANSACCIONAL (ACID)
+# ------------------------------------------------------------------------------
+mysql_users =
+(
+    {
+        username = "cluster_app"
+        password = "AppPassword2026!"
+        default_hostgroup = 10
+        transaction_persistent = 1
+        fast_forward = 0
+        max_connections = 1000
+    }
+)
+
+# ------------------------------------------------------------------------------
+# JERARQUÍA DETERMINISTA DE 6 REGLAS REGEX COMPILADAS (PCRE)
+# ------------------------------------------------------------------------------
+mysql_query_rules =
+(
+    # Regla 10: Bloqueos explícitos de lectura deben ir al Maestro
+    {
+        rule_id = 10
+        active = 1
+        match_pattern = "^SELECT.*FOR UPDATE$"
+        destination_hostgroup = 10
+        apply = 1
+        comment = "Rule 10: SELECT FOR UPDATE -> Master (HG 10)"
+    },
+    # Regla 20: Funciones de estado de sesión
+    {
+        rule_id = 20
+        active = 1
+        match_pattern = "^SELECT.*(LAST_INSERT_ID|FOUND_ROWS|ROW_COUNT|GET_LOCK)"
+        destination_hostgroup = 10
+        apply = 1
+        comment = "Rule 20: Session State Functions -> Master (HG 10)"
+    },
+    # Regla 30: Query Cache en RAM (Prueba 6 - Sobresaliente)
+    {
+        rule_id = 30
+        active = 1
+        match_pattern = "^SELECT.*\/\\*\\+\\s*CACHE\\s*\\*\\/"
+        destination_hostgroup = 20
+        cache_ttl = 5000
+        apply = 1
+        comment = "Rule 30: Query Cache en RAM TTL 5s -> Slaves (HG 20)"
+    },
+    # Regla 40: Consultas de variables globales y telemetría en vivo (Prueba 1)
+    {
+        rule_id = 40
+        active = 1
+        match_pattern = "^SELECT.*@@(hostname|server_id|read_only|gtid_executed)"
+        destination_hostgroup = 20
+        apply = 1
+        comment = "Rule 40: @@hostname / telemetria viva -> Slaves (HG 20)"
+    },
+    # Regla 50: Enrutamiento general de lecturas (Read Split balanceado)
+    {
+        rule_id = 50
+        active = 1
+        match_pattern = "^SELECT"
+        destination_hostgroup = 20
+        apply = 1
+        comment = "Rule 50: General SELECT -> Slaves (HG 20)"
+    },
+    # Regla 60: Enrutamiento explícito de escrituras (Write Split)
+    {
+        rule_id = 60
+        active = 1
+        match_pattern = "^(INSERT|UPDATE|DELETE|REPLACE|CREATE|ALTER|DROP|TRUNCATE)"
+        destination_hostgroup = 10
+        apply = 1
+        comment = "Rule 60: DML / DDL -> Master (HG 10)"
+    }
+)
